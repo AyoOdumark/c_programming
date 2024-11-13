@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 struct Pool {
     int size;               // Size of the memory pool
@@ -64,7 +65,7 @@ void *alloc(struct Pool *pool, size_t size)
     size_t blockSize = pool->size / pool->nBlocks;
 
     if ((size % blockSize) != 0) {
-        printf("error: unable to allocate memory. size must be multiple of %d", blockSize);
+        printf("error: unable to allocate memory. size must be multiple of %zu\n", blockSize);
         return NULL;
     }
 
@@ -77,7 +78,7 @@ void *alloc(struct Pool *pool, size_t size)
     int contiguousCount = 0;
 
     while (current != NULL) {
-        if (contiguousCount = 0) {
+        if (contiguousCount == 0) {
             start = current;      // start potential block allocation
         }
         contiguousCount++;
@@ -99,15 +100,108 @@ void *alloc(struct Pool *pool, size_t size)
     return NULL;
 }
 
+void dealloc(struct Pool *pool, struct FreeBlock *ptr)
+{
+    
+    struct FreeBlock *current = pool->list;
+    struct FreeBlock *prev = NULL;
+
+    while (current != NULL && current < ptr) {
+        prev = current;
+        current = current->next;
+    }
+
+    ptr->next = current;
+
+    if (prev == NULL) {
+        pool->list = ptr;
+    } else {
+        prev->next = ptr;
+    }
+}
+
+//Helper function to print the free list (for debugging purposes)
+void printFreeList(struct Pool *pool) 
+{
+    struct FreeBlock *current = pool->list;
+    printf("Free List:\n");
+    while (current != NULL) {
+        printf("Block at %p, Size: %zu\n", (void *)current, current->size);
+        current = current->next;
+    }
+    printf("\n");
+}
+
 int main()
 {
     int poolSize = 1024;
     int blockSize = 128;
 
+    // Initialize the memory pool
     struct Pool *pool = initPool(poolSize, blockSize);
-
     printf("Memory pool created with %d blocks of size %d\n", pool->nBlocks, blockSize);
+    printFreeList(pool);
+    
+    // Test 1: Allocation of one block
+    void *block1 = alloc(pool, blockSize);
+    if (block1 != NULL) {
+        printf("Test 1 Passed: Allocated first block at %p\n", block1);
+    } else {
+        printf("Test 1 Failed: Allocation return NULL\n");
+    }
+    printFreeList(pool);
 
+    // Test 2: Allocation of a second block and ensure it is different from first
+    void *block2 = alloc(pool, blockSize);
+    if (block2 != NULL && block1 != block2) {
+        printf("Test 2 Passed: Allocated second block at %p\n", block2);
+    } else {
+        printf("Test 2 Failed: second allocation error\n");
+    }
+    printFreeList(pool);
+    
+    // Test 3: Fill up pool with allocations
+    bool all_allocated = true;
+    for (int i = 0; i < pool->nBlocks - 2; i++) {
+        if (alloc(pool, blockSize) == NULL) {
+            all_allocated = false;
+            break;
+        }
+    }
+    if (all_allocated) {
+        printf("Test 3 Passed: All blocks allocated successfully\n");
+    } else {
+        printf("Test 3 Failed: Unable to allocate all blocks\n");
+    }
+    printFreeList(pool);
+    
+    // Test 4: Try allocating one more block than is available
+    void *blockExtra = alloc(pool, blockSize);
+    if (blockExtra == NULL) {
+        printf("Test 4 Passed: Allocation returns NULL when pool is exhausted\n");
+    } else {
+        printf("Test 4 Failed: Allocation should not succeed when pool is exhausted\n");
+    }
+    printFreeList(pool);
+   
+    // Test 5: Deallocate one block and reallocate it
+    dealloc(pool, (struct FreeBlock *)block1);
+    printf("Test 5: Deallocated first block\n");
+    printFreeList(pool);
+    
+    void *block1_realloc = alloc(pool, blockSize);
+    if (block1_realloc == block1) {
+        printf("Test 5 Passed: Reallocation of a deallocated block successful\n");
+    } else {
+        printf("Test 5 Failed: Deallocation or reallocation error!\n");
+    }
+    printFreeList(pool);
+    
+    // Test 6: Deallocate multiple blocks
+    dealloc(pool, (struct FreeBlock *)block2);
+    printf("Test 6: Deallocated second block\n");
+    printFreeList(pool);
 
+    // Test 7: Free all memory and validate the pool can be reused
     return 0;
 }
