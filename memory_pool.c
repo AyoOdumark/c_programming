@@ -19,8 +19,8 @@ struct Pool *initPool(int poolSize, int blockSize)
 {
     // 1. Check if poolSize is divisible by blockSize to get number of blocks in the pool
     if ((poolSize % blockSize) != 0) {
-        printf("error: poolSize is not divisible by blockSize\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "error: poolSize is not divisible by blockSize\n");
+        return NULL;
     }
 
     size_t num_blocks = poolSize / blockSize;
@@ -29,8 +29,8 @@ struct Pool *initPool(int poolSize, int blockSize)
     struct Pool *poolPtr = (struct Pool *)malloc(sizeof(struct Pool));
     
     if (poolPtr == NULL) {
-        printf("error: malloc failed allocating memory pool structure!\n");  // TODO: Better error!
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "error: malloc failed allocating memory pool structure!\n");
+        return NULL;
     }
 
     poolPtr->size = poolSize;
@@ -39,9 +39,9 @@ struct Pool *initPool(int poolSize, int blockSize)
     // 3. Allocate the contiguous block for the memory pool itself
     poolPtr->addr = malloc(poolSize);
     if (poolPtr->addr == NULL) {
-        printf("error: malloc failed allocating memory pool!\n");
+        fprintf(stderr, "error: malloc failed allocating memory pool!\n");
         free(poolPtr);  // Clean up allocated Pool structure
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     // 4. Populate the free list by linking each block to the next
@@ -65,7 +65,7 @@ void *alloc(struct Pool *pool, size_t size)
     size_t blockSize = pool->size / pool->nBlocks;
 
     if ((size % blockSize) != 0) {
-        printf("error: unable to allocate memory. size must be multiple of %zu\n", blockSize);
+        fprintf(stderr, "error: unable to allocate memory. size must be multiple of %zu\n", blockSize);
         return NULL;
     }
 
